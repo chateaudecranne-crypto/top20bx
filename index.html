@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Top 20 AOC Bordeaux – v2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0b0f14; --card: #121822; --muted: #9fb3c8; --accent: #38bdf8; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: #e6edf3; }
+    a { color: var(--accent); }
+    .glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06) }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-20 border-b border-white/10 bg-[#0b0f14]/80 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7 text-sky-400"><path d="M12 2a1 1 0 0 1 .894.553l2.382 4.764 5.259.764a1 1 0 0 1 .554 1.705l-3.8 3.704.897 5.231a1 1 0 0 1-1.451 1.054L12 17.77l-4.685 2.465a1 1 0 0 1-1.451-1.054l.897-5.23-3.8-3.705a1 1 0 0 1 .554-1.706l5.26-.764L11.106 2.553A1 1 0 0 1 12 2Z"/></svg>
+        <h1 class="text-xl font-bold">Top 20 AOC Bordeaux – v2</h1>
+      </div>
+      <div class="text-sm text-white/70">
+        Source unique : <span class="font-semibold">Vivino</span> · Fréquence MAJ : <span id="majLabel">Trimestrielle</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Intro / Controls -->
+    <section class="grid md:grid-cols-2 gap-4 mb-6">
+      <div class="glass rounded-2xl p-5">
+        <h2 class="text-lg font-semibold mb-2">Classements par AOC</h2>
+        <p class="text-sm text-white/70">Sélectionnez une AOC pour afficher le Top 20, calculé à partir des notes Vivino et pondéré par le volume d'avis.</p>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <label for="aoc" class="text-sm text-white/70">AOC :</label>
+          <select id="aoc" class="bg-[#0f1622] border border-white/10 rounded-xl px-3 py-2 text-sm"></select>
+
+          <label for="sort" class="sr-only">Tri</label>
+          <select id="sort" class="bg-[#0f1622] border border-white/10 rounded-xl px-3 py-2 text-sm">
+            <option value="rank">Tri : Classement</option>
+            <option value="score">Tri : Score pondéré</option>
+            <option value="rating">Tri : Note Vivino</option>
+            <option value="reviews">Tri : Nombre d'avis</option>
+            <option value="price">Tri : Prix estimé</option>
+          </select>
+
+          <button id="btnMethodo" class="ml-auto text-sm px-3 py-2 rounded-xl border border-white/10 hover:border-white/20" aria-haspopup="dialog" aria-controls="methodo">Méthodologie</button>
+        </div>
+        <div class="mt-3 text-xs text-white/60 flex items-center gap-2">
+          <span id="lastUpdated"></span>
+          <span aria-hidden="true">•</span>
+          <button id="btnShare" class="underline underline-offset-4 hover:no-underline">Copier le lien (AOC/tri/filtre)</button>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <h3 class="text-lg font-semibold mb-2">Résumé automatique</h3>
+        <p id="aiSummary" class="text-sm text-white/80">Ce module générera un court résumé (mouvements, entrées/sorties) à chaque mise à jour trimestrielle.</p>
+        <p class="text-xs text-white/60 mt-3">Astuce : tapez <kbd class="px-1 py-0.5 bg-white/10 rounded">/</kbd> pour chercher, <kbd class="px-1 py-0.5 bg-white/10 rounded">?</kbd> pour la méthodo.</p>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="glass rounded-2xl overflow-hidden">
+      <div class="p-4 flex flex-col md:flex-row md:items-center gap-3 border-b border-white/10">
+        <label for="search" class="sr-only">Rechercher</label>
+        <input id="search" type="search" placeholder="Rechercher un vin ou producteur…" class="w-full md:flex-1 bg-[#0f1622] border border-white/10 rounded-xl px-3 py-2 text-sm" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" role="table" aria-describedby="scoreNote">
+          <thead class="bg-white/5">
+            <tr>
+              <th class="text-left px-4 py-3 font-semibold">#</th>
+              <th class="text-left px-4 py-3 font-semibold">Vin</th>
+              <th class="text-left px-4 py-3 font-semibold">Producteur</th>
+              <th class="text-left px-4 py-3 font-semibold">Note</th>
+              <th class="text-left px-4 py-3 font-semibold">Avis</th>
+              <th class="text-left px-4 py-3 font-semibold">Score*</th>
+              <th class="text-left px-4 py-3 font-semibold">Prix (€)</th>
+              <th class="text-left px-4 py-3 font-semibold">Lien</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="scoreNote" class="p-4 text-xs text-white/60 border-t border-white/10">* Score pondéré = Note × log10(10 + Avis) (anti-biais faible n)</div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-8 text-xs text-white/50">
+      <p>Prototype statique sans collecte automatique. Remplacez les données internes par vos exports Vivino. Hébergeable tel quel (GitHub Pages, Netlify, etc.).</p>
+    </footer>
+  </main>
+
+  <!-- Modale Méthodo -->
+  <dialog id="methodo" class="rounded-2xl glass p-0 w-full max-w-lg" aria-labelledby="methodoTitle" aria-describedby="methodoDesc">
+    <div class="p-5 border-b border-white/10 flex items-start gap-3">
+      <div class="shrink-0 mt-1" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 text-sky-400"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 14h-2v-2h2v2Zm0-4h-2V6h2v6Z"/></svg></div>
+      <div>
+        <h3 id="methodoTitle" class="text-lg font-semibold">Méthodologie (prototype)</h3>
+        <p id="methodoDesc" class="text-sm text-white/70 mt-2">Classement calculé à partir des <strong>notes Vivino</strong> et <strong>nombre d'avis</strong>. Score = <code>note × log10(10 + avis)</code>. Tri descendant sur le score, top 20 conservé par AOC.
+        <br/>Mise à jour trimestrielle prévue (manuelle dans ce prototype). Export/Import CSV disponibles ci-dessous.</p>
+      </div>
+    </div>
+    <div class="p-4 flex flex-wrap gap-2 items-center">
+      <input id="csvFile" type="file" accept=".csv" class="text-xs" />
+      <button id="btnExport" class="px-3 py-2 text-sm rounded-xl border border-white/10">Exporter CSV</button>
+      <button id="closeMethodo" class="ml-auto px-3 py-2 text-sm rounded-xl border border-white/10">Fermer</button>
+    </div>
+  </dialog>
+
+  <script>
+    // === Données d'exemple (à remplacer par vos données Vivino) ===
+    // Pour aller vite : dupliquez un bloc AOC et collez vos 20 entrées {wine, producer, rating, reviews, price, url}
+    const RAW = {
+      "Saint-Émilion Grand Cru": [
+        { wine: "Château Exemplar 2019", producer: "Domaine Exemple", rating: 4.4, reviews: 1280, price: 45, url: "https://www.vivino.com" },
+        { wine: "Clos Démo 2020", producer: "Clos Démo", rating: 4.3, reviews: 950, price: 39, url: "https://www.vivino.com" },
+        { wine: "Grand Cru Prototype 2018", producer: "Château Prototype", rating: 4.5, reviews: 310, price: 59, url: "https://www.vivino.com" }
+      ],
+      "Médoc": [
+        { wine: "Château Alpha 2018", producer: "Château Alpha", rating: 4.1, reviews: 2100, price: 22, url: "https://www.vivino.com" },
+        { wine: "Château Beta 2019", producer: "Château Beta", rating: 4.0, reviews: 430, price: 18, url: "https://www.vivino.com" },
+        { wine: "Cuvée Gamma 2020", producer: "Maison Gamma", rating: 4.2, reviews: 380, price: 25, url: "https://www.vivino.com" }
+      ],
+      "Pessac-Léognan": [
+        { wine: "Domaine Delta 2021", producer: "Domaine Delta", rating: 4.3, reviews: 520, price: 32, url: "https://www.vivino.com" },
+        { wine: "Château Epsilon 2017", producer: "Château Epsilon", rating: 4.4, reviews: 240, price: 65, url: "https://www.vivino.com" },
+        { wine: "Clos Zeta 2019", producer: "Clos Zeta", rating: 4.1, reviews: 900, price: 28, url: "https://www.vivino.com" }
+      ]
+    };
+
+    // === Utilitaires ===
+    const fmt = new Intl.NumberFormat('fr-FR');
+    function clamp(n){ return Number.isFinite(n) ? n : 0; }
+    function weightedScore(rating, reviews){
+      const r = clamp(rating), v = Math.max(0, clamp(reviews));
+      const score = r * Math.log10(10 + v);
+      return Math.round(score * 1000) / 1000; // 3 décimales, arrondi classique
+    }
+    function stableSort(arr, cmp){
+      return arr.map((v,i)=>[i,v]).sort((a,b)=>cmp(a[1],b[1])||a[0]-b[0]).map(([,v])=>v);
+    }
+    function rankAOC(list){
+      const enriched = list.map((item, i) => ({ idx: i, ...item, score: weightedScore(item.rating, item.reviews) }));
+      const sorted = stableSort(enriched, (a,b)=> b.score - a.score).slice(0,20);
+      return sorted.map((item, idx) => ({ rank: idx+1, ...item }));
+    }
+    function tryParseCSV(text){
+      // Accepte virgule ou point-virgule, gère guillemets simples/doubles sommairement
+      const lines = text.trim().split(/\r?\n/);
+      return lines.map(l=>{
+        const sep = l.includes(';') && !l.includes(',') ? ';' : ',';
+        const cells = l.split(sep).map(c=>c.replace(/^\s*\"|\"\s*$/g,'').trim());
+        const [wine, producer, rating, reviews, price, url] = cells;
+        return { wine, producer, rating: +rating, reviews: +reviews, price: price? +price : undefined, url };
+      });
+    }
+
+    // === État & persistance ===
+    const state = { aoc: null, search: "", sort: "rank", ranked: {}, lastUpdated: new Date() };
+
+    function saveURL(){
+      const params = new URLSearchParams();
+      if(state.aoc) params.set('aoc', state.aoc);
+      if(state.sort && state.sort !== 'rank') params.set('sort', state.sort);
+      if(state.search) params.set('q', state.search);
+      const url = `${location.pathname}?${params.toString()}`;
+      history.replaceState(null, '', url);
+      return location.href;
+    }
+
+    function restoreFromURL(){
+      const p = new URLSearchParams(location.search);
+      return {
+        aoc: p.get('aoc'),
+        sort: p.get('sort') || 'rank',
+        search: p.get('q') || ''
+      };
+    }
+
+    function init(){
+      // Pré-calcul des tops
+      for(const [aoc, list] of Object.entries(RAW)){
+        state.ranked[aoc] = rankAOC(list);
+      }
+
+      // Remplir le select AOC
+      const sel = document.getElementById('aoc');
+      Object.keys(state.ranked).sort().forEach(aoc => {
+        const opt = document.createElement('option');
+        opt.value = aoc; opt.textContent = aoc; sel.appendChild(opt);
+      });
+
+      // Restaurer état depuis URL
+      const restored = restoreFromURL();
+      state.aoc = restored.aoc && state.ranked[restored.aoc] ? restored.aoc : Object.keys(state.ranked).sort()[0];
+      state.sort = restored.sort;
+      state.search = restored.search;
+
+      sel.value = state.aoc;
+      document.getElementById('sort').value = state.sort;
+      const searchEl = document.getElementById('search');
+      searchEl.value = state.search;
+
+      document.getElementById('lastUpdated').textContent = `Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}`;
+      render();
+
+      // Listeners
+      sel.addEventListener('change', e => { state.aoc = e.target.value; render(); });
+      document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
+
+      // Recherche avec debounce
+      let t = null; 
+      searchEl.addEventListener('input', e => { 
+        clearTimeout(t); 
+        t = setTimeout(()=>{ state.search = e.target.value.toLowerCase(); render(); }, 120);
+      });
+
+      const dlg = document.getElementById('methodo');
+      document.getElementById('btnMethodo').addEventListener('click', ()=> { dlg.showModal(); dlg.focus(); });
+      document.getElementById('closeMethodo').addEventListener('click', ()=> dlg.close());
+      dlg.addEventListener('click', (e)=>{ if(e.target === dlg) dlg.close(); });
+
+      // Partage URL
+      document.getElementById('btnShare').addEventListener('click', async ()=>{
+        const url = saveURL();
+        try {
+          await navigator.clipboard.writeText(url);
+          toast('Lien copié dans le presse‑papiers');
+        } catch { prompt('Copiez le lien', url); }
+      });
+
+      // Import/Export CSV
+      const fileInput = document.getElementById('csvFile');
+      fileInput.addEventListener('change', async (e)=>{
+        const f = e.target.files[0]; if(!f) return;
+        const txt = await f.text();
+        const list = tryParseCSV(txt);
+        if(!list.length){ toast('CSV vide ou invalide'); return; }
+        const name = prompt('Nom de l\'AOC pour ces lignes ?', state.aoc || 'Nouvelle AOC');
+        if(!name) return;
+        RAW[name] = list;
+        state.ranked[name] = rankAOC(list);
+        if(!document.querySelector(`#aoc option[value="${CSS.escape(name)}"]`)){
+          const opt = document.createElement('option'); opt.value=name; opt.textContent=name; document.getElementById('aoc').appendChild(opt);
+        }
+        state.aoc = name; document.getElementById('aoc').value = name; render();
+      });
+
+      document.getElementById('btnExport').addEventListener('click', ()=>{
+        const rows = RAW[state.aoc] || [];
+        const csv = rows.map(r=>[r.wine, r.producer||'', r.rating||'', r.reviews||'', r.price??'', r.url||''].join(',')).join('\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${state.aoc.replace(/\s+/g,'_')}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      // Raccourcis clavier
+      window.addEventListener('keydown', (e)=>{
+        if(e.key === '/' && document.activeElement !== document.getElementById('search')){ e.preventDefault(); document.getElementById('search').focus(); }
+        if(e.key === '?'){ e.preventDefault(); document.getElementById('btnMethodo').click(); }
+      });
+    }
+
+    function toast(msg){
+      const el = document.createElement('div');
+      el.textContent = msg;
+      el.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 text-sm rounded-xl glass shadow-lg';
+      document.body.appendChild(el);
+      setTimeout(()=> el.remove(), 1800);
+    }
+
+    function updateSummary(){
+      const aoc = state.aoc; const top = state.ranked[aoc] || [];
+      const leader = top[0];
+      const fastRiser = top[1];
+      const t = leader ? `Dans l'AOC ${aoc}, ${leader.wine} (${leader.producer}) domine avec une note ${leader.rating} basée sur ${fmt.format(leader.reviews)} avis.` : '';
+      const r = fastRiser ? ` Un challenger notable : ${fastRiser.wine}, porté par une forte popularité.` : '';
+      document.getElementById('aiSummary').textContent = (t + r).trim() || "Sélectionnez une AOC pour afficher un résumé.";
+    }
+
+    function render(){
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      let rows = [...(state.ranked[state.aoc] || [])];
+
+      // Filtre recherche
+      if(state.search){
+        const q = state.search;
+        rows = rows.filter(r => (r.wine||'').toLowerCase().includes(q) || (r.producer||'').toLowerCase().includes(q));
+      }
+      // Tri
+      const sort = state.sort;
+      const keyer = {
+        rank: r => r.rank,
+        score: r => r.score,
+        rating: r => r.rating,
+        reviews: r => r.reviews || 0,
+        price: r => r.price ?? Number.POSITIVE_INFINITY
+      }[sort];
+      const dir = sort === 'rank' ? 1 : -1; // rank asc, others desc
+      rows = stableSort(rows, (a,b)=> dir * (keyer(a) - keyer(b)));
+
+      // Render
+      for(const r of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-4 py-3 whitespace-nowrap">${r.rank}</td>
+          <td class="px-4 py-3">${r.wine ?? ''}</td>
+          <td class="px-4 py-3">${r.producer ?? ''}</td>
+          <td class="px-4 py-3">${Number(r.rating).toFixed(2)}</td>
+          <td class="px-4 py-3">${fmt.format(r.reviews||0)}</td>
+          <td class="px-4 py-3">${Number(r.score).toFixed(3)}</td>
+          <td class="px-4 py-3">${r.price!=null ? fmt.format(r.price) : '—'}</td>
+          <td class="px-4 py-3"><a href="${r.url||'#'}" target="_blank" rel="noopener">Vivino</a></td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      updateSummary();
+      saveURL();
+    }
+
+    // === Import rapide depuis CSV (console) ===
+    // Format: wine,producer,rating,reviews,price,url (sans en-tête)
+    window.injectCSV = function(aocName, csv){
+      const list = tryParseCSV(csv);
+      RAW[aocName] = list;
+      state.ranked[aocName] = rankAOC(list);
+      if(!Object.keys(state.ranked).includes(state.aoc)) state.aoc = aocName;
+      const sel = document.getElementById('aoc');
+      if(![...sel.options].some(o=>o.value===aocName)){
+        const o=document.createElement('option'); o.value=aocName; o.textContent=aocName; sel.appendChild(o);
+      }
+      sel.value = aocName;
+      render();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
